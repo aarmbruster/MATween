@@ -14,34 +14,41 @@ namespace MinorAlchemy
 		public bool isPaused;
 		public bool isPlaying;
 		public float Delay { get; set; }
+        public T from = default(T);
+        public T to = default(T);
 		internal Coroutine coroutine;
 
 		TweenEngine tweenEngine;
 		Easer easer = Ease.FromType(EaseType.Linear);
-        T from, to;
-        Action<T> Update;
-        Action<T> Complete;
+        
+        public Action<T> Update;
+        public Action<T> Complete;
 
         internal Action<float> UpdateTime = (float time) => { };
 
-		public MaTween(T from, T to, float duration, Action<T> Update)
+		public MaTween(T from, T to, float duration, EaseType easeType)
 		{
 			this.from = from;
 			this.to = to;
 			this.duration = duration;
-			this.easer = Ease.FromType(this.easeType);
-			this.Update = Update;
-            ITweenVal<T> tweenVal = TweenDelegate(typeof(T).Name);
-            this.UpdateTime = (float time) => { Update((T)(object)(tweenVal.Val(tweenVal.From, tweenVal.To, easer(elapsed / duration)))); }; 
+            this.easeType = easeType;
+			this.easer = Ease.FromType(easeType);
+            
 			tweenEngine = TweenEngine.Instance;
 		}
-		
-		public MaTween(T from, T to, float duration, Action<T> Update , EaseType easeType) : 				this(from, to, duration, Update) 			{ this.easeType = easeType; }
-		public MaTween(T from, T to, float duration, Action<T> Update , float delay) : 						this(from, to, duration, Update) 			{ this.Delay = delay; }
-		public MaTween(T from, T to, float duration , Action<T> Update, float delay, EaseType easeType) : 	this(from, to, duration, Update, easeType) 	{ this.easeType = easeType; this.Delay = delay; } 
+
+        public MaTween(T from, T to, float duration, EaseType easeType, Action<T> Update) : this(from, to, duration, easeType) { 
+            this.Update = Update;
+        }
+
+        public MaTween(T from, T to, float duration, EaseType easeType , Action<T> Update, Action<T> Complete) : this(from, to, duration, easeType, Update) {
+            this.Complete = Complete; 
+        }
 		
 		public void Play ()
 		{
+            ITweenVal<T> tweenVal = TweenDelegate(typeof(T).Name);
+            this.UpdateTime = (float time) => { Update((T)(object)(tweenVal.Val(from, to, easer(elapsed / duration)))); }; 
 			elapsed = 0;
 			easer = Ease.FromType(easeType);
 			Stop ();
@@ -104,15 +111,15 @@ namespace MinorAlchemy
 			yield return new WaitForSeconds(tween.Delay);
 			while(tween.elapsed < tween.duration)
 			{
+                tween.UpdateTime(tween.elapsed);
 				tween.elapsed = Mathf.MoveTowards(tween.elapsed, tween.duration, Time.deltaTime);
 				yield return new WaitForEndOfFrame();
-                tween.UpdateTime(tween.elapsed);
 				if(tween.isPaused)
 					yield return StartCoroutine(PauseRoutine(tween.coroutine));
 				
 			}
-			if (tween.coroutine != null || tween.willCompleteOnStop)
-				tween.UpdateTime (tween.duration);
+            if (tween.coroutine != null || tween.willCompleteOnStop)
+                tween.Complete(tween.to);
 			
 		}
 		
@@ -237,60 +244,60 @@ namespace MinorAlchemy
 
     interface ITweenVal<T>
     {
-        T From{get; set;}
-        T To{get; set;}
-        T Val(T From, T To, float time);
+        T Val(T from, T to, float time);
     }
 
     class TweenVal<T>
     {
-        public T To { get; set; }
-        public T From { get; set; }
-        public TweenVal(T From, T To)
+        protected T to = default(T);
+        protected T from = default(T);
+        public TweenVal(T from, T to)
         {
-            this.From = From;
-            this.To = To;
+            this.from = from;
+            this.to = to;
         } 
     }
 
     class FloatVal : TweenVal<float>, ITweenVal<float>
     {
-        public FloatVal(float From, float To) : base(From, To) { }
-        public float Val (float From, float To, float time) { return Mathf.Lerp(From, To, time); }
+        public FloatVal(float from, float to) : base(from, to) { }
+        public float Val(float from, float To, float time) { return Mathf.Lerp(from, to, time); }
     }
 
     class Vector2Val : TweenVal<Vector2>, ITweenVal<Vector2>
     {
-        public Vector2Val(Vector2 From, Vector2 To) : base(From, To) { }
-        public Vector2 Val(Vector2 From, Vector2 To, float time) { return Vector2.Lerp(From, To, time); }
+        public Vector2Val(Vector2 from, Vector2 to) : base(from, to) { }
+        public Vector2 Val(Vector2 from, Vector2 To, float time) { return Vector2.Lerp(from, to, time); }
     }
 
     class Vector3Val : TweenVal<Vector3>, ITweenVal<Vector3>
     {
-        public Vector3Val(Vector3 From, Vector3 To) : base(From, To) { }
-        public Vector3 Val(Vector3 From, Vector3 To, float time) { return Vector3.Lerp(From, To, time); }
+        public Vector3Val(Vector3 from, Vector3 to) : base(from, to) { }
+        public Vector3 Val(Vector3 from, Vector3 To, float time) { return Vector3.Lerp(from, to, time); }
     }
 
     class Vector4Val : TweenVal<Vector4>, ITweenVal<Vector4>
     {
-        public Vector4Val(Vector4 From, Vector4 To) : base(From, To) { }
-        public Vector4 Val(Vector4 From, Vector4 To, float time) { return Vector4.Lerp(From, To, time); }
+        public Vector4Val(Vector4 from, Vector4 to) : base(from, to) { }
+        public Vector4 Val(Vector4 from, Vector4 To, float time) { return Vector4.Lerp(from, to, time); }
     }
 
     class ColorVal : TweenVal<Color>, ITweenVal<Color>
     {
-        public ColorVal(Color From, Color To) : base(From, To) { }
-        public Color Val(Color From, Color To, float time) { return Color.Lerp(From, To, time); }
+        public ColorVal(Color from, Color to) : base(from, to) { }
+        public Color Val(Color from, Color To, float time) { return Color.Lerp(from, to, time); }
     }
 
     class RectVal : TweenVal<Rect>, ITweenVal<Rect>
     {
-        public RectVal(Rect From, Rect To) : base(From, To) { }
-        public Rect Val(Rect From, Rect To, float time) { return new Rect(
-                Mathf.Lerp(From.x, To.y, time),
-                Mathf.Lerp(From.y, To.y, time),
-                Mathf.Lerp(From.width, To.width, time),
-                Mathf.Lerp(From.height, To.height, time));
+        public RectVal(Rect from, Rect to) : base(from, to) { }
+        public Rect Val(Rect from, Rect to, float time)
+        {
+            return new Rect(
+                Mathf.Lerp(from.x, to.y, time),
+                Mathf.Lerp(from.y, to.y, time),
+                Mathf.Lerp(from.width, to.width, time),
+                Mathf.Lerp(from.height, to.height, time));
         }
     }
 
