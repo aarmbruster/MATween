@@ -6,25 +6,44 @@ using MinorAlchemy;
 public class TweenFloat : MonoBehaviour 
 {
     public Text textComponent;
+    public Transform cube;
+    public MaTween<float> ft = null;
 
-    MaTween<float> ft = null;
+    void Start()
+    {
+        ft = new MaTween<float>(0, 100, 1, EaseType.CubeInOut);
+        ft.Update = (float val) =>
+        {
+            textComponent.text = val.ToString();
+            cube.position = new Vector3(0, val * 0.05f, 0);
+        };
+        ft.Complete = (float val) =>
+        {
+            var tmpFrom = ft.from;
+            ft.from = ft.to;
+            ft.to = tmpFrom;
+            ft.Play();
+        };
+    }
 
     public void DoTween()
     {
-        if(ft!=null) ft.Stop();
-        ft = new MaTween<float>(0, 100, 1, EaseType.CubeInOut);
-        ft.Update =  (float val) => {
-            Debug.Log(val);
-            textComponent.text = val.ToString(); 
-        };
-        ft.Complete = 
-            (float val) => {
-                ft.Complete = (float n) => { };
-                ft.from = 100;
-                ft.to = 0;
-                ft.Play(); 
-            };
-        ft.Play();
         
+        ft.Play(); 
+    }
+
+    public void ResumeTween()
+    {
+        ft.Resume();
+    }
+
+    public void PauseTween()
+    {
+        ft.Pause();
+    }
+
+    public void StopTween()
+    {
+        ft.Stop();
     }
 }
