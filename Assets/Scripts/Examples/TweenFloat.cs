@@ -12,12 +12,12 @@ public class TweenFloat : MonoBehaviour
     void Start()
     {
         ft = new MaTween<float>(0, 100, 1, EaseType.CubeInOut);
-        ft.Update = (float val) =>
+        ft.OnUpdate = (float val) =>
         {
             textComponent.text = val.ToString();
             cube.position = new Vector3(0, val * 0.05f, 0);
         };
-        ft.Complete = (float val) =>
+        ft.OnComplete = (float val) =>
         {
             var tmpFrom = ft.from;
             ft.from = ft.to;
@@ -28,7 +28,6 @@ public class TweenFloat : MonoBehaviour
 
     public void DoTween()
     {
-        
         ft.Play(); 
     }
 

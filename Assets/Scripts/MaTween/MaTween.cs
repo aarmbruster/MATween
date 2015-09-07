@@ -10,27 +10,33 @@ namespace MinorAlchemy
 	{
 		public float elapsed = 0.0f, duration = 0.0f;
 		public EaseType easeType = EaseType.Linear;
-		public bool willCompleteOnStop = false;
+		public bool doCompleteOnStop = false;
 		public bool isPaused;
 		public bool isPlaying;
 		public float Delay { get; set; }
         public T from = default(T);
         public T to = default(T);
+		public T current = default(T);
+
+		public Action<T> OnPlay =		(T val) => {};
+		public Action<T> OnUpdate = 	(T val) => {};
+		public Action<T> OnComplete = 	(T val) => {};
+		public Action<T> OnPause = 		(T val) => {};
+		public Action<T> OnResume = 	(T val) => {};
+		public Action<T> OnStop = 		(T val) => {};
+
+		public event Action<T> PlayEvent = 		(T val) => {};
+		public event Action<T> UpdateEvent = 	(T val) => {};
+		public event Action<T> CompleteEvent = 	(T val) => {};
+		public event Action<T> PauseEvent = 	(T val) => {};
+		public event Action<T> ResumeEvent =	(T val) => {};
+		public event Action<T> StopEvent = 		(T val) => {};
+
 		internal Coroutine coroutine;
+        internal Action<float> UpdateTime = (float time) => { };
 
 		TweenEngine tweenEngine;
 		Easer easer = Ease.FromType(EaseType.Linear);
-        
-
-		public Action<T> UpdateEvent = (T val) => {};
-		public Action<T> CompleteEvent = (T val) => {};
-
-		public event Action<T> UpdateEvent = (T val) => {};
-		public event Action<T> CompleteEvent = (T val) => {};
-		public event Action<T> PausedEvent = (T val) => {};
-		public event Action<T> StoppedEvent = (T val) => {};
-
-        internal Action<float> UpdateTime = (float time) => { };
 
 		public MaTween(T from, T to, float duration, EaseType easeType)
 		{
@@ -40,41 +46,51 @@ namespace MinorAlchemy
             this.easeType = easeType;
 			this.easer = Ease.FromType(easeType);
             ITweenVal<T> tweenVal = TweenDelegate(typeof(T).Name);
-            this.UpdateTime = (float time) => { Update((T)(object)(tweenVal.Val(easer(elapsed / duration)))); }; 
+            this.UpdateTime = (float time) => { 
+				current = (T)(object)(tweenVal.Val(easer(elapsed / duration)));
+				OnUpdate(current);
+			}; 
 			tweenEngine = TweenEngine.Instance;
 		}
 
-        public MaTween(T from, T to, float duration, EaseType easeType, Action<T> Update) : this(from, to, duration, easeType) { 
-            this.Update = Update;
+        public MaTween(T from, T to, float duration, EaseType easeType, Action<T> OnUpdate) : this(from, to, duration, easeType) { 
+            this.OnUpdate = OnUpdate;
         }
 
-        public MaTween(T from, T to, float duration, EaseType easeType , Action<T> Update, Action<T> Complete) : this(from, to, duration, easeType, Update) {
-            this.Complete = Complete; 
+        public MaTween(T from, T to, float duration, EaseType easeType , Action<T> OnUpdate, Action<T> Complete) : this(from, to, duration, easeType, OnUpdate) {
+            this.OnComplete = Complete; 
         }
 		
 		public void Play ()
 		{
-            
 			elapsed = 0;
 			easer = Ease.FromType(easeType);
 			Stop ();
 			coroutine = tweenEngine.Run<T> (this);
+			OnPlay (current);
+			PlayEvent (current);
 		}
 		
         public void Resume()
         {
             isPaused = false;
+			OnResume (current);
+			ResumeEvent (current);
         }
 
         public void Pause()
         {
             isPaused = true;
+			OnPause (current);
+			PauseEvent (current);
         }
 
 		public void Stop()
 		{
 			if (tweenEngine != null && coroutine != null)
 				tweenEngine.Stop<T> (ref coroutine);
+			OnStop (current);
+			StopEvent (current);
 		}
 
         ITweenVal<T> TweenDelegate(string type)
@@ -131,23 +147,19 @@ namespace MinorAlchemy
 				tween.elapsed = Mathf.MoveTowards(tween.elapsed, tween.duration, Time.deltaTime);
 				yield return new WaitForEndOfFrame();
 				if(tween.isPaused)
-					yield return StartCoroutine(PauseRoutine<T>(tween));
-				
+					yield return StartCoroutine(PauseRoutine<T>(tween));	
 			}
-            if (tween.willCompleteOnStop)
-				tween.UpdateTime(tween.duration);
 
-			if (tween.coroutine != null)
-            	tween.Complete(tween.to);
-			
+            if (tween.coroutine != null)
+				tween.OnComplete (tween.to);
+			else if (tween.coroutine == null && tween.doCompleteOnStop)
+            	tween.OnComplete(tween.to);
 		}
 		
 		protected virtual IEnumerator PauseRoutine<T>(MaTween<T> tween)
 		{
-            Debug.Log("Paused!");
 			while(tween.coroutine != null && tween.isPaused)
 				yield return null;
-            Debug.Log("Resume");
 		}
 	}
 	
