@@ -15,7 +15,7 @@ public class TweenFloat : MonoBehaviour
         ft.OnUpdate = (float val) =>
         {
             textComponent.text = val.ToString();
-            cube.position = new Vector3(0, val * 0.05f, 0);
+            cube.position = new Vector3(cube.position.x, val * 0.05f, cube.position.z);
         };
         ft.OnComplete = (float val) =>
         {
